@@ -1,0 +1,42 @@
+name: aikido
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  aikido-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Aikido PR scan
+        uses: AikidoSec/github-actions-workflow@v1.0.13
+        with:
+          secret-key: ${{ secrets.TOKEN_AIKIDO_CI_CD }}
+          fail-on-timeout: false
+          fail-on-dependency-scan: true
+          fail-on-sast-scan: true
+          fail-on-iac-scan: true
+          fail-on-secrets-scan: true
+          minimum-severity: HIGH
+          timeout-seconds: 180
+          post-scan-status-comment: "on"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+  aikido-release:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Aikido scan-release
+        env:
+          TOKEN_AIKIDO_CI_CD: ${{ secrets.TOKEN_AIKIDO_CI_CD }}
+        run: |
+          npx --yes @aikidosec/ci-api-client scan-release graphai-mcp "$GITHUB_SHA" --apikey "$TOKEN_AIKIDO_CI_CD" \
+            --fail-on-sast-scan --fail-on-iac-scan --fail-on-secrets-scan || true

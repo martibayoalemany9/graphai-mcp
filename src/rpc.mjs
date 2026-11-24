@@ -1,4 +1,5 @@
 import { callTool, listTools } from "./tools.mjs"
+import { captureException } from "./sentry.mjs"
 
 export async function handleJsonRpc(body) {
   const id = body?.id ?? null
@@ -11,7 +12,7 @@ export async function handleJsonRpc(body) {
         result: {
           protocolVersion: "2025-03-26",
           capabilities: { tools: {} },
-          serverInfo: { name: "Graphai", version: "0.1.0" },
+          serverInfo: { name: "Graphai", version: "0.1.1" },
         },
       }
     }
@@ -26,6 +27,7 @@ export async function handleJsonRpc(body) {
     if (method === "ping") return { jsonrpc: "2.0", id, result: {} }
     return { jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${method}` } }
   } catch (err) {
+    await captureException(err)
     return { jsonrpc: "2.0", id, error: { code: -32001, message: String(err.message || err) } }
   }
 }
