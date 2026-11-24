@@ -1,4 +1,6 @@
 import { mdTable, origin, textResult } from "./origin.mjs"
+import { ansiPlot } from "./plot.mjs"
+import { qrAnsi } from "./qr-ansi.mjs"
 import {
   fetchCheckWg,
   fetchIpFamily,
@@ -12,6 +14,7 @@ import {
   measureSpeed,
   measureVideo,
 } from "./probes.mjs"
+import { pollLogin, requirePaid, startLogin, startSubscribe, tokenFrom, whoami } from "./session.mjs"
 
 export const TOOL_DEFS = [
   {
@@ -96,16 +99,100 @@ export const TOOL_DEFS = [
       },
     },
   },
+  {
+    name: "login",
+    description: "Start Clerk login shared with check-wireguard.graphai.eu. Returns a URL to open, then poll login_status.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "login_status",
+    description: "Poll a Clerk MCP ticket until status=ready (JWT on the ticket).",
+    inputSchema: { type: "object", properties: { ticket: { type: "string" } }, required: ["ticket"] },
+  },
+  {
+    name: "whoami",
+    description: "Clerk session + KPI subscription on the shared check-wireguard profile.",
+    inputSchema: { type: "object", properties: { token: { type: "string" } } },
+  },
+  {
+    name: "subscribe",
+    description: "Create a NOWPayments invoice: min of €5 or 0.0001 BTC. Prints a terminal QR of the BTC address plus web links.",
+    inputSchema: { type: "object", properties: { token: { type: "string" } } },
+  },
+  {
+    name: "subscribe_status",
+    description: "Poll NOWPayments payment_id after subscribe.",
+    inputSchema: { type: "object", properties: { payment_id: { type: "string" }, token: { type: "string" } }, required: ["payment_id"] },
+  },
 ]
 
 function rttTable(title, data) {
   const rows = (data.samples || []).map((s) => [s.i, s.ms, s.status ?? ""])
   const head = `${title} · origin ${data.origin} · n=${data.n} min=${data.min} median=${data.median} max=${data.max} ms`
   const table = rows.length ? mdTable(["#", "ms", "status"], rows) : "_no samples_"
-  return textResult(`${head}\n\n${table}`)
+  const plot = ansiPlot((data.samples || []).map((s) => s.ms), { title: `${title} RTT (ms)` })
+  return textResult(`${head}\n\n${table}\n\n\`\`\`\n${plot}\n\`\`\``)
 }
 
-export async function callTool(name, args = {}) {
+function deny(gate) {
+  return textResult(`**${gate.error}**\n\n${gate.message}`)
+}
+
+export async function callTool(name, args = {}, headers = {}) {
+  const token = tokenFrom(headers, args)
+  const gate = await requirePaid(token, name)
+  if (!gate.ok) return deny(gate)
+
+  if (name === "login") {
+    const t = await startLogin()
+    return textResult(
+      `Clerk login (same instance as https://check-wireguard.graphai.eu/)\n\n` +
+        `| field | value |\n| --- | --- |\n| ticket | ${t.id} |\n| open | ${t.login_url} |\n| poll | ${t.poll} |\n\n` +
+        `Open the URL, sign in, then call **login_status** with this ticket.`,
+    )
+  }
+  if (name === "login_status") {
+    const t = await pollLogin(args.ticket)
+    return textResult(
+      `login_status=${t.status}\n\n\`\`\`json\n${JSON.stringify(t, null, 2)}\n\`\`\`\n\n` +
+        (t.token ? `Pass this JWT as GRAPHAI_CLERK_TOKEN or tool arg \`token\`.` : "Keep polling."),
+    )
+  }
+  if (name === "whoami") {
+    const s = await whoami(token)
+    return textResult(
+      `whoami\n\n${mdTable(
+        ["signed_in", "subscribed", "id", "email", "kpi_until"],
+        [[s.signed_in, s.subscribed, s.id, s.email, s.kpi_until]],
+      )}`,
+    )
+  }
+  if (name === "subscribe") {
+    if (!token) return deny({ error: "clerk_login_required", message: "Call login first." })
+    const j = await startSubscribe(token)
+    if (j.error) return textResult(`subscribe error ${j.status}: ${j.error}`)
+    const addr = j.pay_address || ""
+    const uri = addr ? `bitcoin:${addr}${j.pay_amount ? `?amount=${j.pay_amount}` : ""}` : ""
+    const qrUrl = uri
+      ? `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(uri)}`
+      : j.invoice_url || j.web
+    const barcode = addr ? qrAnsi(uri || addr) : "(no pay_address yet)"
+    return textResult(
+      `NOWPayments KPI · ${j.quote?.note || "min of €5 or 0.0001 BTC"}\n\n` +
+        `${mdTable(
+          ["pay_address", "pay_amount", "pay_currency", "payment_id"],
+          [[addr, j.pay_amount, j.pay_currency, j.payment_id]],
+        )}\n\n` +
+        `**Web invoice:** ${j.invoice_url || j.web}\n` +
+        `**QR image:** ${qrUrl}\n` +
+        `**Site:** ${j.web}\n\n` +
+        `Scan this barcode in a BTC wallet:\n\n\`\`\`\n${barcode}\n\`\`\``,
+    )
+  }
+  if (name === "subscribe_status") {
+    const d = await fetchCheckWg(`/api/nowpayments?payment_id=${encodeURIComponent(args.payment_id)}`, token)
+    return textResult(`subscribe_status ${d.status}\n\n\`\`\`json\n${JSON.stringify(d.json, null, 2).slice(0, 4000)}\n\`\`\``)
+  }
   if (name === "latency" || name === "path_sample") {
     const data = name === "path_sample" ? await measurePathSample(args) : await measureLatency(args)
     return rttTable(name, data)
@@ -170,14 +257,14 @@ export async function callTool(name, args = {}) {
   }
   if (name === "check_wg_ip") {
     const fam = args.fam ? `?fam=${encodeURIComponent(args.fam)}` : ""
-    const d = await fetchCheckWg(`/api/ip${fam}`)
+    const d = await fetchCheckWg(`/api/ip${fam}`, token)
     const j = d.json || {}
     return textResult(
       `check-wireguard /api/ip status=${d.status}\n\n${mdTable(["ip", "family", "match", "edge"], [[j.ip, j.family, j.match, j.edge]])}`,
     )
   }
   if (name === "check_wg_stats") {
-    const d = await fetchCheckWg("/api/stats")
+    const d = await fetchCheckWg("/api/stats", token)
     const c = d.json?.client || {}
     return textResult(
       `check-wireguard /api/stats\n\n${mdTable(["ip", "city", "isp", "country"], [[c.ip, c.city, c.isp, c.country]])}`,
@@ -192,7 +279,7 @@ export async function callTool(name, args = {}) {
       if (args.limit) q.set("limit", String(args.limit))
       path = `/api/queries?${q}`
     }
-    const d = await fetchCheckWg(path)
+    const d = await fetchCheckWg(path, token)
     const names = (d.json?.queries || []).map((x) => [x.name, x.href])
     if (names.length) return textResult(`query catalog\n\n${mdTable(["name", "href"], names)}`)
     return textResult(`query ${args.name || "catalog"} status=${d.status}\n\n\`\`\`json\n${JSON.stringify(d.json, null, 2).slice(0, 4000)}\n\`\`\``)

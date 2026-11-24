@@ -2,7 +2,7 @@
 
 Dummy [MCP](https://modelcontextprotocol.io) named **Graphai**. It talks to a **Vercel webservice** in this same repo for latency, speed, IP, and geolocation, and it wraps the live probes from [check-wireguard.graphai.eu](https://check-wireguard.graphai.eu/).
 
-No login. Compatible with Grok (stdio or Streamable HTTP) and Codex.
+Clerk login is **shared with [check-wireguard.graphai.eu](https://check-wireguard.graphai.eu/)**. KPI recording and long tools (`stats`, `queries`, `network_quality`, `http2`/`http3`, `video_stream`) need a NOWPayments plan: **whichever is lower of €5 or 0.0001 BTC per month**. `subscribe` prints a terminal QR of the BTC address plus a web invoice link. RTT tools print an ANSI plot.
 
 ## Vercel routes
 
@@ -33,7 +33,9 @@ No login. Compatible with Grok (stdio or Streamable HTTP) and Codex.
 | `my_ip` / `my_ip_geolocation` | Request IP and Vercel geo headers |
 | `stats` | `/?format=json` / `/api/stats` |
 | `check_wg_ip` / `check_wg_stats` | Live proxy to check-wireguard.graphai.eu |
-| `queries` | ClickHouse catalog (`by_country`, `scans_recent`, …) |
+| `queries` | ClickHouse catalog (`by_country`, `scans_recent`, …) — **KPI subscription** |
+| `login` / `login_status` / `whoami` | Clerk device ticket → JWT |
+| `subscribe` / `subscribe_status` | NOWPayments min(€5, 0.0001 BTC), ANSI QR + web link |
 
 ## Deploy
 

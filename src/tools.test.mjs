@@ -39,6 +39,11 @@ test("tools/list includes latency speed my_ip geo and check-wireguard probes", a
     "check_wg_ip",
     "check_wg_stats",
     "queries",
+    "login",
+    "login_status",
+    "whoami",
+    "subscribe",
+    "subscribe_status",
   ]) {
     assert.ok(names.includes(n), n)
   }
@@ -54,15 +59,25 @@ test("local webservice my-ip, geo, latency, speed, nq", async () => {
     const lat = await callTool("latency", { samples: 2 })
     assert.match(lat.content[0].text, /median=/)
     assert.match(lat.content[0].text, /\| # \| ms \|/)
+    assert.match(lat.content[0].text, /█|·/)
     const spd = await callTool("speed", { bytes: 4096 })
     assert.match(spd.content[0].text, /mbps/)
+    process.env.GRAPHAI_CLERK_TOKEN = "local-operator"
     const nq = await callTool("network_quality", { samples: 2 })
     assert.match(nq.content[0].text, /download/)
     const vid = await callTool("video_stream", { samples: 2 })
     assert.match(vid.content[0].text, /video_stream/)
     const h2 = await callTool("http2", { samples: 1 })
     assert.match(h2.content[0].text, /http2/)
+    const me = await callTool("whoami", {})
+    assert.match(me.content[0].text, /user_local_operator/)
   } finally {
     server.close()
   }
+})
+
+test("paid stats without session is gated", async () => {
+  delete process.env.GRAPHAI_CLERK_TOKEN
+  const r = await callTool("stats", {}, {})
+  assert.match(r.content[0].text, /clerk_login_required/)
 })

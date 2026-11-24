@@ -43,6 +43,9 @@ export async function handleHttp(req, res) {
       res.end(JSON.stringify({ error: "invalid_json" }))
       return
     }
+    body.headers = Object.fromEntries(
+      Object.entries(req.headers || {}).map(([k, v]) => [String(k).toLowerCase(), Array.isArray(v) ? v[0] : v]),
+    )
     const out = await handleJsonRpc(body)
     res.writeHead(200, { "content-type": "application/json" })
     res.end(JSON.stringify(out))

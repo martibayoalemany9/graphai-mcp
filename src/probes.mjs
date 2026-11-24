@@ -97,8 +97,10 @@ export async function fetchStats() {
   return r.json()
 }
 
-export async function fetchCheckWg(path) {
-  const r = await fetch(`${CHECK_WG}${path}`, { cache: "no-store" })
+export async function fetchCheckWg(path, token = "") {
+  const headers = {}
+  if (token) headers.authorization = `Bearer ${token}`
+  const r = await fetch(`${CHECK_WG}${path}`, { headers, cache: "no-store" })
   const text = await r.text()
   try {
     return { status: r.status, json: JSON.parse(text) }

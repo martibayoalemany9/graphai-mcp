@@ -13,6 +13,9 @@ for await (const line of rl) {
     process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", error: { code: -32700, message: "Parse error" } })}\n`)
     continue
   }
-  const out = await handleJsonRpc(body)
+  const out = await handleJsonRpc({
+    ...body,
+    headers: { authorization: process.env.GRAPHAI_CLERK_TOKEN ? `Bearer ${process.env.GRAPHAI_CLERK_TOKEN}` : "" },
+  })
   if (out) process.stdout.write(`${JSON.stringify(out)}\n`)
 }
