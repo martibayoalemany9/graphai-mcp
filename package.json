@@ -1,0 +1,14 @@
+{
+  "name": "graphai-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Dummy Graphai MCP: latency, speed, IP/geo, and check-wireguard probes via a Vercel webservice.",
+  "bin": { "graphai-mcp": "./src/stdio.mjs" },
+  "scripts": {
+    "test": "node --test src/*.test.mjs",
+    "start": "node src/stdio.mjs",
+    "http": "node src/http.mjs"
+  },
+  "engines": { "node": ">=20" }
+}
