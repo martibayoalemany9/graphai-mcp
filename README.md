@@ -42,7 +42,11 @@ cd graphai-mcp
 npx vercel --prod --yes --scope team_2MzmUHEuxjEOmy13tfYnSTle
 ```
 
-Set `GRAPHAI_ORIGIN` to the production URL (stdio clients and self-probes).
+Production: **https://graphai-mcp.vercel.app**  
+MCP: `https://graphai-mcp.vercel.app/mcp`  
+GitHub: https://github.com/martibayoalemany9/graphai-mcp
+
+`GRAPHAI_ORIGIN` is set to that URL on Vercel production (stdio clients and self-probes).
 
 ## Grok
 
