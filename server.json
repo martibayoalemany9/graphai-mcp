@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "eu.graphai/check-wireguard",
+  "title": "Check WireGuard Graphai",
+  "description": "WireGuard and path MCP: latency, speed, IP, geo, HTTP/2 and HTTP/3 probes.",
+  "repository": {
+    "url": "https://github.com/martibayoalemany9/graphai-mcp",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "websiteUrl": "https://check-wireguard.graphai.eu",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://graphai-mcp.vercel.app/mcp"
+    }
+  ]
+}

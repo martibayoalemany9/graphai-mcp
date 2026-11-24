@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "graphai": {
+      "type": "streamable-http",
+      "url": "https://graphai-mcp.vercel.app/mcp"
+    },
+    "jobs2": {
+      "type": "streamable-http",
+      "url": "https://jobs2-mcp.vercel.app/mcp"
+    }
+  }
+}
+
